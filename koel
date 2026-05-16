@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Launcher for the Koel FrankenPHP standalone distribution.
+#
+# Convention-only — all writable state lives under $HOME/.koel/:
+#   $HOME/.koel/.env         — environment file
+#   $HOME/.koel/storage/     — Laravel storage path
+#   $HOME/.koel/storage/app/artifacts/ — transcodes, downloaded podcasts, etc.
+#   $HOME/.koel/db.sqlite    — SQLite database
+#   $HOME/.koel/php.d/       — runtime PHP-INI overrides
+#
+# Invocation passes through to FrankenPHP's CLI:
+#   ./koel php-server [--listen :8000] [--domain my.koel.example]
+#   ./koel php-cli artisan <command>
+#
+# The script lives next to the `frankenphp` binary and the extracted `koel/`
+# application tree; build.sh assembles the three into a distributable bundle.
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+KOEL_DIR="$HERE/koel"
+FRANKENPHP="$HERE/frankenphp"
+KOEL_HOME="$HOME/.koel"
+
+if [[ ! -x "$FRANKENPHP" ]]; then
+	echo "[koel] $FRANKENPHP not found or not executable; this launcher must live next to the bundled frankenphp binary." >&2
+	exit 2
+fi
+if [[ ! -d "$KOEL_DIR" ]]; then
+	echo "[koel] $KOEL_DIR not found; this launcher must live next to the bundled koel/ app tree." >&2
+	exit 2
+fi
+
+mkdir -p \
+	"$KOEL_HOME" \
+	"$KOEL_HOME/storage/app/public" \
+	"$KOEL_HOME/storage/app/artifacts" \
+	"$KOEL_HOME/storage/framework/cache/data" \
+	"$KOEL_HOME/storage/framework/sessions" \
+	"$KOEL_HOME/storage/framework/views" \
+	"$KOEL_HOME/storage/logs" \
+	"$KOEL_HOME/php.d"
+
+# PHP-INI overrides — koel ships with PDO::MYSQL_ATTR_* constants that PHP 8.5
+# (FrankenPHP's bundled PHP) deprecates; without these the deprecation lands
+# in the response stream and corrupts JSON. Same set as koel's Caddyfile.example.
+cat > "$KOEL_HOME/php.d/koel.ini" <<'EOF'
+display_errors=Off
+log_errors=On
+error_reporting=E_ALL & ~E_DEPRECATED & ~E_STRICT
+upload_max_filesize=512M
+post_max_size=512M
+max_execution_time=300
+max_input_time=300
+EOF
+export PHP_INI_SCAN_DIR="$KOEL_HOME/php.d"
+
+# First-run init — fingerprinted on .env's existence.
+if [[ ! -f "$KOEL_HOME/.env" ]]; then
+	echo "[koel] first-run init in $KOEL_HOME" >&2
+	# Portable sed (works on macOS BSD + GNU): write through a temp file.
+	tmpfile="$(mktemp)"
+	sed \
+		-e 's|^APP_DEBUG=.*|APP_DEBUG=false|' \
+		-e 's|^DB_CONNECTION=.*|DB_CONNECTION=sqlite|' \
+		-e 's|^DB_HOST=.*|DB_HOST=|' \
+		-e 's|^DB_PORT=.*|DB_PORT=|' \
+		-e "s|^DB_DATABASE=.*|DB_DATABASE=$KOEL_HOME/db.sqlite|" \
+		-e 's|^DB_USERNAME=.*|DB_USERNAME=|' \
+		-e 's|^DB_PASSWORD=.*|DB_PASSWORD=|' \
+		-e "s|^ARTIFACTS_PATH=.*|ARTIFACTS_PATH=$KOEL_HOME/storage/app/artifacts|" \
+		"$KOEL_DIR/.env.example" > "$tmpfile"
+	# .env.example may not have ARTIFACTS_PATH defined at all — append if missing.
+	if ! grep -q '^ARTIFACTS_PATH=' "$tmpfile"; then
+		echo "ARTIFACTS_PATH=$KOEL_HOME/storage/app/artifacts" >> "$tmpfile"
+	fi
+	mv "$tmpfile" "$KOEL_HOME/.env"
+	touch "$KOEL_HOME/db.sqlite"
+fi
+
+# Wire the embedded app into the writable state.
+ln -snf "$KOEL_HOME/.env" "$KOEL_DIR/.env"
+if [[ ! -L "$KOEL_DIR/public/storage" ]]; then
+	rm -rf "$KOEL_DIR/public/storage"
+fi
+ln -snf "$KOEL_HOME/storage/app/public" "$KOEL_DIR/public/storage"
+export LARAVEL_STORAGE_PATH="$KOEL_HOME/storage"
+
+cd "$KOEL_DIR"
+
+# Post-wiring first-run init that needs PHP.
+if [[ ! -f "$KOEL_HOME/.initialized" ]]; then
+	if ! grep -q '^APP_KEY=base64:' "$KOEL_HOME/.env"; then
+		"$FRANKENPHP" php-cli artisan key:generate --force >&2
+	fi
+	"$FRANKENPHP" php-cli artisan migrate --force >&2
+	touch "$KOEL_HOME/.initialized"
+fi
+
+if [[ $# -lt 1 ]]; then
+	echo "Usage: $0 <php-server|php-cli|run|version|…> [args…]" >&2
+	exit 2
+fi
+SUBCMD="$1"; shift
+
+# `php-server` defaults its document root to the cwd; koel's index.php lives
+# under public/. Inject --root public/ unless the user already passed one.
+if [[ "$SUBCMD" == "php-server" ]]; then
+	HAS_ROOT=0
+	for arg in "$@"; do
+		case "$arg" in
+			--root|--root=*) HAS_ROOT=1 ;;
+		esac
+	done
+	if [[ $HAS_ROOT -eq 0 ]]; then
+		set -- "--root" "public/" "$@"
+	fi
+fi
+
+exec "$FRANKENPHP" "$SUBCMD" "$@"
