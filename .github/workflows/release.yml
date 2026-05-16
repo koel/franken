@@ -60,8 +60,80 @@ jobs:
           path: build/koel-franken-*-${{ matrix.platform }}.tar.gz
           if-no-files-found: error
 
-  release:
+  smoke-test:
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-latest
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: koel-franken-${{ matrix.platform }}
+          path: artifact
+
+      - name: Extract bundle and boot it
+        run: |
+          set -e
+          BUNDLE=$(ls artifact/koel-franken-*-${{ matrix.platform }}.tar.gz | head -1)
+          tar -xzf "$BUNDLE"
+          DIR=$(basename "$BUNDLE" .tar.gz)
+          echo "BUNDLE_DIR=$PWD/$DIR" >> "$GITHUB_ENV"
+
+      - name: Start php-server in the background
+        working-directory: ${{ env.BUNDLE_DIR }}
+        run: |
+          ./koel php-server --listen :8000 > /tmp/server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+
+          # Wait up to 60s for the first-run init (key:generate + migrate) and the server to bind.
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:8000/; then
+              echo "server responding after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "::error::server never responded on :8000"
+          echo "--- server log ---"
+          cat /tmp/server.log
+          exit 1
+
+      - name: HTTP smoke test
+        run: |
+          set -e
+          curl -fsS http://localhost:8000/ -o /tmp/index.html
+          grep -q '<title>Koel</title>' /tmp/index.html
+
+          # /api/ping must return a clean body — any PHP-8.5 deprecation leaking into
+          # the response stream would corrupt JSON responses.
+          curl -fsS http://localhost:8000/api/ping -o /tmp/api-ping
+          ! grep -qi 'deprecated\|<br' /tmp/api-ping
+
+      - name: Artisan smoke test
+        working-directory: ${{ env.BUNDLE_DIR }}
+        run: ./koel php-cli artisan --version
+
+      - name: Convention check ($HOME/.koel)
+        run: |
+          set -e
+          test -f "$HOME/.koel/.env"
+          test -s "$HOME/.koel/db.sqlite"
+          test -d "$HOME/.koel/storage/app/public"
+          test -f "$HOME/.koel/php.d/koel.ini"
+
+      - name: Tear down
+        if: always()
+        run: kill "${SERVER_PID:-0}" 2>/dev/null || true
+
+  release:
+    needs: smoke-test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
