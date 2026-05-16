@@ -99,11 +99,12 @@ jobs:
           ./koel php-server --listen :8000 > /tmp/server.log 2>&1 &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
 
-          # Wait until the server is bound and serving anything (any HTTP code, even 500).
+          # Wait until the server is actually accepting TCP connections.
+          # `curl --max-time 2` without `-f` succeeds on any HTTP response (even 5xx)
+          # and fails only on connection error — exactly the discriminator we want.
           for i in $(seq 1 30); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:8000/ 2>/dev/null || echo 000)
-            if [ "$code" != "000" ]; then
-              echo "server bound after ${i}s (first response: $code)"
+            if curl -sS -o /dev/null --max-time 2 http://localhost:8000/ 2>/dev/null; then
+              echo "server bound after ${i}s"
               exit 0
             fi
             sleep 1
@@ -116,27 +117,35 @@ jobs:
 
       - name: HTTP smoke test
         run: |
-          set -e
           dump_diagnostics() {
             echo "--- response body ---"
-            cat "$1" || true
+            cat "$1" 2>/dev/null || echo "(no body)"
             echo
             echo "--- laravel.log ---"
             cat "$HOME/.koel/storage/logs/laravel.log" 2>/dev/null || echo "(no laravel.log)"
             echo "--- server log ---"
-            cat /tmp/server.log
+            cat /tmp/server.log 2>/dev/null || echo "(no server log)"
+            echo "--- server process status ---"
+            if [ -n "${SERVER_PID:-}" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "PID $SERVER_PID still alive"
+            else
+              echo "PID ${SERVER_PID:-?} is gone"
+            fi
           }
 
-          code=$(curl -sS -o /tmp/index.html -w '%{http_code}' http://localhost:8000/ 2>/dev/null)
-          echo "GET / → $code"
-          if [ "$code" != "200" ] || ! grep -q '<title>Koel</title>' /tmp/index.html; then
+          code=$(curl -sS -o /tmp/index.html -w '%{http_code}' http://localhost:8000/ 2>/tmp/curl-err.log) || true
+          echo "GET / → ${code:-curl-failed}"
+          if [ -s /tmp/curl-err.log ]; then
+            echo "curl stderr: $(cat /tmp/curl-err.log)"
+          fi
+          if [ "$code" != "200" ] || ! grep -q '<title>Koel</title>' /tmp/index.html 2>/dev/null; then
             echo "::error::GET / failed"
             dump_diagnostics /tmp/index.html
             exit 1
           fi
 
-          code=$(curl -sS -o /tmp/api-ping -w '%{http_code}' http://localhost:8000/api/ping 2>/dev/null)
-          echo "GET /api/ping → $code"
+          code=$(curl -sS -o /tmp/api-ping -w '%{http_code}' http://localhost:8000/api/ping 2>/tmp/curl-err.log) || true
+          echo "GET /api/ping → ${code:-curl-failed}"
           if [ "$code" != "200" ]; then
             echo "::error::GET /api/ping failed"
             dump_diagnostics /tmp/api-ping
