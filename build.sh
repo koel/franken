@@ -61,6 +61,9 @@ if [[ ! -f "$KOEL_TARBALL" ]]; then
 		"https://github.com/koel/koel/releases/download/$KOEL_VERSION/koel-$KOEL_VERSION.tar.gz"
 fi
 tar -xzf "$KOEL_TARBALL" -C "$BUNDLE_DIR"
+# The release tarball extracts to `koel/`; rename to `app/` so it doesn't
+# collide with the launcher script named `koel` we drop in next.
+mv "$BUNDLE_DIR/koel" "$BUNDLE_DIR/app"
 
 # Drop the launcher in.
 cp "$HERE/koel" "$BUNDLE_DIR/koel"

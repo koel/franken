@@ -18,7 +18,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-KOEL_DIR="$HERE/koel"
+KOEL_DIR="$HERE/app"
 FRANKENPHP="$HERE/frankenphp"
 KOEL_HOME="$HOME/.koel"
 
@@ -27,7 +27,7 @@ if [[ ! -x "$FRANKENPHP" ]]; then
 	exit 2
 fi
 if [[ ! -d "$KOEL_DIR" ]]; then
-	echo "[koel] $KOEL_DIR not found; this launcher must live next to the bundled koel/ app tree." >&2
+	echo "[koel] $KOEL_DIR not found; this launcher must live next to the bundled app/ tree." >&2
 	exit 2
 fi
 
