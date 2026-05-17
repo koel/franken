@@ -65,9 +65,10 @@ tar -xzf "$KOEL_TARBALL" -C "$BUNDLE_DIR"
 # collide with the launcher script named `koel` we drop in next.
 mv "$BUNDLE_DIR/koel" "$BUNDLE_DIR/app"
 
-# Drop the launcher in.
+# Drop the launcher and the artisan shortcut in.
 cp "$HERE/koel" "$BUNDLE_DIR/koel"
-chmod +x "$BUNDLE_DIR/koel"
+cp "$HERE/artisan" "$BUNDLE_DIR/artisan"
+chmod +x "$BUNDLE_DIR/koel" "$BUNDLE_DIR/artisan"
 
 echo "[build] done — bundle at $BUNDLE_DIR" >&2
 echo "$BUNDLE_DIR"

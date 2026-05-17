@@ -162,7 +162,8 @@ jobs:
 
       - name: Artisan smoke test
         working-directory: ${{ env.BUNDLE_DIR }}
-        run: ./koel php-cli artisan --version
+        # Exercises the `./artisan` shortcut (which re-execs the launcher).
+        run: ./artisan --version
 
       - name: Convention check ($HOME/.koel)
         run: |
