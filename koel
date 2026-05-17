@@ -88,11 +88,42 @@ export LARAVEL_STORAGE_PATH="$KOEL_HOME/storage"
 
 cd "$KOEL_DIR"
 
+install_scheduler_cron() {
+	case "$(uname -s)" in
+		Linux|Darwin) ;;
+		*) return 0 ;;
+	esac
+
+	if ! command -v crontab >/dev/null 2>&1; then
+		echo "[koel] crontab not found; scheduled tasks won't run until you set up scheduling manually." >&2
+		return 0
+	fi
+
+	# Marker pairs the launcher's absolute path with the artisan invocation so
+	# different bundles (or relocations) don't collide and re-installs are idempotent.
+	local marker="$HERE/koel php-cli artisan schedule:run"
+	local line="* * * * * $marker >> $KOEL_HOME/storage/logs/scheduler.log 2>&1"
+
+	if crontab -l 2>/dev/null | grep -qF "$marker"; then
+		return 0
+	fi
+
+	if ( crontab -l 2>/dev/null; echo "$line" ) | crontab - 2>/dev/null; then
+		echo "[koel] installed crontab entry for scheduled tasks (edit with: crontab -e)" >&2
+	else
+		echo "[koel] failed to install crontab entry; scheduled tasks won't run. To install manually, add this line to your crontab:" >&2
+		echo "       $line" >&2
+	fi
+}
+
 # Post-wiring first-run init that needs PHP. Delegates to koel:init — the same
 # command Pre-Compiled Archive users and koel/koel's release workflow run.
 # Handles key:generate, migrations, default admin seed, storage:link, etc.
+# `--no-scheduler` suppresses koel:init's own crontab install (it hardcodes
+# `php`, won't work for the bundle); we install our own corrected entry below.
 if [[ ! -f "$KOEL_HOME/.initialized" ]]; then
 	"$FRANKENPHP" php-cli artisan koel:init --no-assets --no-scheduler --no-interaction >&2
+	install_scheduler_cron
 	touch "$KOEL_HOME/.initialized"
 fi
 
