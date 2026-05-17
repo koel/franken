@@ -172,6 +172,19 @@ jobs:
           test -d "$HOME/.koel/storage/app/public"
           test -f "$HOME/.koel/php.d/koel.ini"
 
+      - name: Scheduler cron entry installed
+        run: |
+          MARKER="$BUNDLE_DIR/koel php-cli artisan schedule:run"
+          if ! crontab -l 2>/dev/null | grep -qF "$MARKER"; then
+            echo "::error::expected crontab entry not found"
+            echo "--- looking for ---"
+            echo "$MARKER"
+            echo "--- crontab -l ---"
+            crontab -l 2>/dev/null || echo "(no crontab)"
+            exit 1
+          fi
+          echo "scheduler cron entry present"
+
       - name: Tear down
         if: always()
         run: kill "${SERVER_PID:-0}" 2>/dev/null || true
