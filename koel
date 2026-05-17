@@ -92,7 +92,7 @@ cd "$KOEL_DIR"
 # command Pre-Compiled Archive users and koel/koel's release workflow run.
 # Handles key:generate, migrations, default admin seed, storage:link, etc.
 if [[ ! -f "$KOEL_HOME/.initialized" ]]; then
-	"$FRANKENPHP" php-cli artisan koel:init --no-assets --no-interaction >&2
+	"$FRANKENPHP" php-cli artisan koel:init --no-assets --no-scheduler --no-interaction >&2
 	touch "$KOEL_HOME/.initialized"
 fi
 
