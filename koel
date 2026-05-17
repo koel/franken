@@ -94,6 +94,15 @@ if [[ ! -f "$KOEL_HOME/.initialized" ]]; then
 		"$FRANKENPHP" php-cli artisan key:generate --force >&2
 	fi
 	"$FRANKENPHP" php-cli artisan migrate --force >&2
+	"$FRANKENPHP" php-cli artisan tinker --execute='app(\App\Repositories\UserRepository::class)->getOrCreateFirstAdmin();' >&2
+	cat <<-EOF >&2
+
+		[koel] Default admin account created. Log in with:
+		         email:    admin@koel.dev
+		         password: KoelIsCool
+		       Change the password immediately from the profile screen.
+
+	EOF
 	touch "$KOEL_HOME/.initialized"
 fi
 
