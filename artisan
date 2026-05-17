@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Shortcut for `./koel php-cli artisan …`. Routes through the launcher so the
+# bundle's PHP runtime, env wiring, and storage path are all in scope.
+exec "$(cd "$(dirname "$0")" && pwd)/koel" php-cli artisan "$@"
