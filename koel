@@ -88,21 +88,11 @@ export LARAVEL_STORAGE_PATH="$KOEL_HOME/storage"
 
 cd "$KOEL_DIR"
 
-# Post-wiring first-run init that needs PHP.
+# Post-wiring first-run init that needs PHP. Delegates to koel:init — the same
+# command Pre-Compiled Archive users and koel/koel's release workflow run.
+# Handles key:generate, migrations, default admin seed, storage:link, etc.
 if [[ ! -f "$KOEL_HOME/.initialized" ]]; then
-	if ! grep -q '^APP_KEY=base64:' "$KOEL_HOME/.env"; then
-		"$FRANKENPHP" php-cli artisan key:generate --force >&2
-	fi
-	"$FRANKENPHP" php-cli artisan migrate --force >&2
-	"$FRANKENPHP" php-cli artisan tinker --execute='app(\App\Repositories\UserRepository::class)->getOrCreateFirstAdmin();' >&2
-	cat <<-EOF >&2
-
-		[koel] Default admin account created. Log in with:
-		         email:    admin@koel.dev
-		         password: KoelIsCool
-		       Change the password immediately from the profile screen.
-
-	EOF
+	"$FRANKENPHP" php-cli artisan koel:init --no-assets --no-interaction >&2
 	touch "$KOEL_HOME/.initialized"
 fi
 
