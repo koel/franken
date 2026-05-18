@@ -116,26 +116,23 @@ install_scheduler_cron() {
 	fi
 }
 
-# Post-wiring first-run init that needs PHP. Delegates to koel:init — the same
-# command Pre-Compiled Archive users and koel/koel's release workflow run.
-# Handles key:generate, migrations, default admin seed, storage:link, etc.
-# `--no-scheduler` suppresses koel:init's own crontab install (it hardcodes
-# `php`, won't work for the bundle); we install our own corrected entry below.
-if [[ ! -f "$KOEL_HOME/.initialized" ]]; then
-	"$FRANKENPHP" php-cli artisan koel:init --no-assets --no-scheduler --no-interaction >&2
-	install_scheduler_cron
-	touch "$KOEL_HOME/.initialized"
-fi
-
 if [[ $# -lt 1 ]]; then
 	echo "Usage: $0 <php-server|php-cli|run|version|…> [args…]" >&2
 	exit 2
 fi
 SUBCMD="$1"; shift
 
-# `php-server` defaults its document root to the cwd; koel's index.php lives
-# under public/. Inject --root public/ unless the user already passed one.
+# Run koel:init before every php-server start. It's idempotent — first run does
+# initial setup; subsequent runs apply new migrations and refresh the storage
+# symlink, which is how upgrades catch themselves up.
+# `--no-scheduler` skips koel:init's own crontab install (it hardcodes `php`);
+# install_scheduler_cron below adds a corrected entry instead.
 if [[ "$SUBCMD" == "php-server" ]]; then
+	"$FRANKENPHP" php-cli artisan koel:init --no-assets --no-scheduler --no-interaction >&2
+	install_scheduler_cron
+
+	# php-server defaults its document root to the cwd; koel's index.php lives
+	# under public/. Inject --root public/ unless the user already passed one.
 	HAS_ROOT=0
 	for arg in "$@"; do
 		case "$arg" in
