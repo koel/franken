@@ -1,0 +1,26 @@
+name: 💡Feature request
+description: Request a new feature or improvement for the Standalone Binary distribution.
+title: "[FR]: "
+assignees:
+  - phanan
+body:
+  - type: checkboxes
+    id: is-franken-feature
+    attributes:
+      label: This is a Standalone Binary feature request.
+      description: Please confirm this request is specific to the Standalone Binary distribution (the launcher, build script, release archives). For feature requests against Koel itself, use the [Koel feature request template](https://github.com/koel/koel/issues/new?template=2-feature-request.yml).
+      options:
+        - label: I am filing a feature request related to the Standalone Binary distribution
+          required: true
+  - type: textarea
+    id: desc
+    attributes:
+      label: Description
+      description: A clear and concise description of the new feature or improvement.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional information
+      description: Any other information you think might be helpful, e.g. the motivation behind the feature, the benefits it brings, or examples of how it's been implemented elsewhere.

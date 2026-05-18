@@ -1,0 +1,74 @@
+name: 🐛 Bug Report
+description: File a bug report.
+title: "[Bug]: "
+assignees:
+  - phanan
+body:
+  - type: checkboxes
+    id: is-franken-issue
+    attributes:
+      label: This is a Standalone Binary issue.
+      description: Please confirm that this issue is specific to the Standalone Binary distribution of Koel (koel/franken). For issues related to Koel itself — the application, the web UI, the API — use the [Koel issue template](https://github.com/koel/koel/issues/new?template=1-bug-report.yml). For Docker, use the [koel/docker issue template](https://github.com/koel/docker/issues/new?template=1-bug-report.yml).
+      options:
+        - label: I am filing a bug report related to the Standalone Binary distribution
+          required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which prebuilt archive are you running?
+      options:
+        - mac-arm64
+        - mac-x86_64
+        - linux-x86_64
+        - linux-aarch64
+        - Built from source
+    validations:
+      required: true
+  - type: input
+    id: franken-version
+    attributes:
+      label: koel/franken version
+      description: The release tag you downloaded (e.g. v9.3.5).
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: How do you trigger this bug? Please provide a step-by-step guide.
+      value: |
+        1.
+        2.
+        3.
+        4. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant logs from `$HOME/.koel/storage/logs/laravel.log` and/or the terminal output of `./koel php-server`.
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional information
+      description: Any other information you think might be helpful.
+      value: |
+        - **Database** (default SQLite, or did you override to MySQL/Postgres?):
+        - **Custom `.env` changes**:
+        - **Additional context**:
