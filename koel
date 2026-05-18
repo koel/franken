@@ -39,6 +39,7 @@ mkdir -p \
 	"$KOEL_HOME/storage/framework/sessions" \
 	"$KOEL_HOME/storage/framework/views" \
 	"$KOEL_HOME/storage/logs" \
+	"$KOEL_HOME/storage/search-indexes" \
 	"$KOEL_HOME/php.d"
 
 # PHP-INI overrides — koel ships with PDO::MYSQL_ATTR_* constants that PHP 8.5
