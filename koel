@@ -34,6 +34,7 @@ fi
 mkdir -p \
 	"$KOEL_HOME" \
 	"$KOEL_HOME/storage/app/public" \
+	"$KOEL_HOME/storage/app/public/images" \
 	"$KOEL_HOME/storage/app/artifacts" \
 	"$KOEL_HOME/storage/framework/cache/data" \
 	"$KOEL_HOME/storage/framework/sessions" \
