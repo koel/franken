@@ -73,14 +73,3 @@ PLATFORM=linux-aarch64 \
 The result lands in `build/koel-franken-<koel-version>-<platform>/`.
 
 Supported platforms: `mac-arm64`, `mac-x86_64`, `linux-x86_64`, `linux-aarch64`.
-
-## How releases are cut
-
-Pushing a `v*` tag triggers `.github/workflows/release.yml`, which builds all
-four platforms in parallel and uploads them as draft assets on the GitHub
-release.
-
-The koel/franken tag matches the Koel version it ships
-(e.g. tag `v9.3.3` ships `koel v9.3.3`).
-The FrankenPHP version is pinned in the workflow's `FRANKENPHP_VERSION` env
-var and bumped via PR.
