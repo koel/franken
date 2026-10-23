@@ -209,13 +209,17 @@ jobs:
           TAG="${INPUT_KOEL_VERSION:-$REF_NAME}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release
+      - name: Create or update the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          gh release create "$TAG" \
-            --repo "$REPO" \
-            --title "$TAG" \
-            artifacts/koel-franken-*.tar.gz
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$REPO" --clobber artifacts/koel-franken-*.tar.gz
+          else
+            gh release create "$TAG" \
+              --repo "$REPO" \
+              --title "$TAG" \
+              artifacts/koel-franken-*.tar.gz
+          fi
