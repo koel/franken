@@ -16,7 +16,7 @@ on:
         type: string
 
 env:
-  FRANKENPHP_VERSION: v1.13.2
+  FRANKENPHP_VERSION: v1.13.3
 
 permissions:
   contents: write
