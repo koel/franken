@@ -17,14 +17,14 @@ BUILD_ROOT="$HERE/build"
 mkdir -p "$BUILD_ROOT"
 
 # Inputs (env-overridable).
-KOEL_VERSION="${KOEL_VERSION:-$(curl -sSL https://api.github.com/repos/koel/koel/releases/latest | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')}"
-FRANKENPHP_VERSION="${FRANKENPHP_VERSION:-$(curl -sSL https://api.github.com/repos/php/frankenphp/releases/latest | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')}"
+KOEL_VERSION="${KOEL_VERSION:-$(curl -fsSL https://api.github.com/repos/koel/koel/releases/latest | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')}"
+FRANKENPHP_VERSION="${FRANKENPHP_VERSION:-$(curl -fsSL https://api.github.com/repos/php/frankenphp/releases/latest | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')}"
 
 # Platform detection.
 if [[ -z "${PLATFORM:-}" ]]; then
 	case "$(uname -s)-$(uname -m)" in
 		Darwin-arm64)        PLATFORM=mac-arm64 ;;
-		Darwin-x86_64)       PLATFORM=mac-x86_64 ;;
+		Darwin-x86_64)       echo "[build] FrankenPHP no longer ships Intel Mac binaries; build FrankenPHP from source instead" >&2; exit 2 ;;
 		Linux-x86_64)        PLATFORM=linux-x86_64 ;;
 		Linux-aarch64)       PLATFORM=linux-aarch64 ;;
 		*) echo "[build] unsupported host $(uname -s)-$(uname -m); pass PLATFORM= explicitly" >&2; exit 2 ;;
@@ -33,7 +33,6 @@ fi
 
 case "$PLATFORM" in
 	mac-arm64)        FRANKENPHP_ASSET=frankenphp-mac-arm64 ;;
-	mac-x86_64)       FRANKENPHP_ASSET=frankenphp-mac-x86_64 ;;
 	linux-x86_64)     FRANKENPHP_ASSET=frankenphp-linux-x86_64 ;;
 	linux-aarch64)    FRANKENPHP_ASSET=frankenphp-linux-aarch64 ;;
 	*) echo "[build] unknown PLATFORM=$PLATFORM" >&2; exit 2 ;;
@@ -49,7 +48,7 @@ mkdir -p "$BUNDLE_DIR"
 
 # Fetch FrankenPHP binary.
 echo "[build] fetching FrankenPHP $FRANKENPHP_VERSION ($FRANKENPHP_ASSET)…" >&2
-curl -sSL -o "$BUNDLE_DIR/frankenphp" \
+curl -fsSL -o "$BUNDLE_DIR/frankenphp" \
 	"https://github.com/php/frankenphp/releases/download/$FRANKENPHP_VERSION/$FRANKENPHP_ASSET"
 chmod +x "$BUNDLE_DIR/frankenphp"
 
@@ -57,7 +56,7 @@ chmod +x "$BUNDLE_DIR/frankenphp"
 echo "[build] fetching koel $KOEL_VERSION…" >&2
 KOEL_TARBALL="$BUILD_ROOT/koel-$KOEL_VERSION.tar.gz"
 if [[ ! -f "$KOEL_TARBALL" ]]; then
-	curl -sSL -o "$KOEL_TARBALL" \
+	curl -fsSL -o "$KOEL_TARBALL" \
 		"https://github.com/koel/koel/releases/download/$KOEL_VERSION/koel-$KOEL_VERSION.tar.gz"
 fi
 tar -xzf "$KOEL_TARBALL" -C "$BUNDLE_DIR"
