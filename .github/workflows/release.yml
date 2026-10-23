@@ -16,7 +16,7 @@ on:
         type: string
 
 env:
-  FRANKENPHP_VERSION: v1.12.2
+  FRANKENPHP_VERSION: v1.13.2
 
 permissions:
   contents: write
@@ -29,7 +29,6 @@ jobs:
       matrix:
         platform:
           - mac-arm64
-          - mac-x86_64
           - linux-x86_64
           - linux-aarch64
     steps:

@@ -72,4 +72,4 @@ PLATFORM=linux-aarch64 \
 
 The result lands in `build/koel-franken-<koel-version>-<platform>/`.
 
-Supported platforms: `mac-arm64`, `mac-x86_64`, `linux-x86_64`, `linux-aarch64`.
+Supported platforms: `mac-arm64`, `linux-x86_64`, `linux-aarch64`. FrankenPHP no longer publishes Intel Mac binaries, so there is no `mac-x86_64` bundle.
