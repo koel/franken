@@ -134,7 +134,15 @@ run_server_with_reverb() {
 	echo "[koel] starting Reverb (log: $KOEL_HOME/storage/logs/reverb.log)" >&2
 	"$FRANKENPHP" php-cli artisan reverb:start >> "$KOEL_HOME/storage/logs/reverb.log" 2>&1 &
 	REVERB_PID=$!
-	trap 'kill -KILL "$REVERB_PID" 2>/dev/null || true' EXIT
+
+	(
+		sleep 2
+		kill -0 "$REVERB_PID" 2>/dev/null \
+			|| echo "[koel] Reverb stopped right after starting, so live updates won't work. See $KOEL_HOME/storage/logs/reverb.log" >&2
+	) &
+	REVERB_CHECK_PID=$!
+
+	trap 'kill -KILL "$REVERB_PID" "$REVERB_CHECK_PID" 2>/dev/null || true' EXIT
 
 	"$FRANKENPHP" php-server "$@" &
 	SERVER_PID=$!

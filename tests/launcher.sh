@@ -16,6 +16,11 @@ cat > "$WORK_DIR/bundle/frankenphp" <<FAKE
 #!/usr/bin/env bash
 if [[ "\$1" == php-cli && "\$3" == reverb:start ]]; then
 	echo \$\$ > "$WORK_DIR/reverb.pid"
+
+	if [[ -n "\${REVERB_EXIT_CODE:-}" ]]; then
+		exit "\$REVERB_EXIT_CODE"
+	fi
+
 	trap '' TERM INT
 	exec sleep 300
 fi
@@ -56,7 +61,7 @@ wait_for_file() {
 	return 1
 }
 
-# Usage: run_case <name> <.env BROADCAST_CONNECTION line> <how to stop: int|term|crash> <expect Reverb: yes|no> [env…]
+# Usage: run_case <name> <.env BROADCAST_CONNECTION line> <how to stop: int|term|crash> <expect Reverb: yes|no|dies> [env…]
 run_case() {
 	local name="$1" env_line="$2" stop="$3" expect_reverb="$4" failures_before=$failures
 	shift 4
@@ -65,7 +70,7 @@ run_case() {
 	printf 'APP_KEY=test\n%s\n' "$env_line" > "$WORK_DIR/home/.koel/.env"
 
 	env -u BROADCAST_CONNECTION HOME="$WORK_DIR/home" PATH="$WORK_DIR/bin:$PATH" "$@" \
-		"$WORK_DIR/bundle/koel" php-server >/dev/null 2>&1 &
+		"$WORK_DIR/bundle/koel" php-server >"$WORK_DIR/launcher.log" 2>&1 &
 	local launcher_pid=$!
 
 	if ! wait_for_file "$WORK_DIR/server.pid"; then
@@ -80,6 +85,10 @@ run_case() {
 	if [[ "$expect_reverb" == yes ]]; then
 		wait_for_file "$WORK_DIR/reverb.pid" || fail "$name: Reverb didn't start"
 		reverb_pid="$(cat "$WORK_DIR/reverb.pid" 2>/dev/null || true)"
+	elif [[ "$expect_reverb" == dies ]]; then
+		wait_for_file "$WORK_DIR/reverb.pid" || fail "$name: Reverb didn't start"
+		sleep 3
+		is_running "$server_pid" || fail "$name: the server stopped along with Reverb"
 	else
 		sleep 0.5
 		[[ -e "$WORK_DIR/reverb.pid" ]] && fail "$name: Reverb started"
@@ -111,6 +120,12 @@ run_case() {
 	is_running "$server_pid" && fail "$name: the server is still running"
 	[[ -n "$reverb_pid" ]] && is_running "$reverb_pid" && fail "$name: Reverb is still running"
 
+	if grep -q 'Reverb stopped right after starting' "$WORK_DIR/launcher.log"; then
+		[[ "$expect_reverb" == dies ]] || fail "$name: warned that Reverb stopped"
+	else
+		[[ "$expect_reverb" == dies ]] && fail "$name: no warning that Reverb stopped"
+	fi
+
 	kill -9 "$server_pid" ${reverb_pid:+"$reverb_pid"} 2>/dev/null || true
 	if [[ $failures -eq $failures_before ]]; then
 		echo "ok: $name"
@@ -121,6 +136,7 @@ run_case "Reverb stops on Ctrl+C" 'BROADCAST_CONNECTION=reverb' int yes
 run_case "Reverb stops on SIGTERM" 'BROADCAST_CONNECTION="reverb"' term yes
 run_case "Reverb with a comment after the setting" 'BROADCAST_CONNECTION=reverb # live updates' term yes
 run_case "Reverb stops when the server crashes" 'BROADCAST_CONNECTION=reverb' crash yes SERVER_EXIT_CODE=3
+run_case "Warns when Reverb stops right after starting" 'BROADCAST_CONNECTION=reverb' term dies REVERB_EXIT_CODE=1
 run_case "No Reverb with another broadcaster" 'BROADCAST_CONNECTION=pusher' term no
 run_case "No Reverb when the environment overrides .env" 'BROADCAST_CONNECTION=reverb' term no BROADCAST_CONNECTION=null
 run_case "Reverb from the environment" '' int yes BROADCAST_CONNECTION=reverb
