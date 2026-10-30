@@ -34,6 +34,7 @@ if [[ "\$1" == php-server ]]; then
 	fi
 
 	trap 'exit 0' TERM
+	trap '' HUP
 	while :; do sleep 0.1; done
 fi
 FAKE
@@ -61,7 +62,7 @@ wait_for_file() {
 	return 1
 }
 
-# Usage: run_case <name> <.env BROADCAST_CONNECTION line> <how to stop: int|term|crash> <expect Reverb: yes|no|dies> [env…]
+# Usage: run_case <name> <.env BROADCAST_CONNECTION line> <how to stop: int|term|hup|crash> <expect Reverb: yes|no|dies> [env…]
 run_case() {
 	local name="$1" env_line="$2" stop="$3" expect_reverb="$4" failures_before=$failures
 	shift 4
@@ -98,6 +99,14 @@ run_case() {
 	case "$stop" in
 		int) kill -INT -- "-$launcher_pid" ;;
 		term) kill -TERM "$launcher_pid" ;;
+		hup)
+			kill -HUP "$launcher_pid"
+			sleep 1
+			is_running "$launcher_pid" || fail "$name: the launcher exited on SIGHUP"
+			is_running "$server_pid" || fail "$name: the server stopped on SIGHUP"
+			[[ -z "$reverb_pid" ]] || is_running "$reverb_pid" || fail "$name: Reverb stopped on SIGHUP"
+			kill -TERM "$launcher_pid" 2>/dev/null || true
+			;;
 	esac
 
 	for _ in $(seq 1 100); do
@@ -136,6 +145,8 @@ run_case "Reverb stops on Ctrl+C" 'BROADCAST_CONNECTION=reverb' int yes
 run_case "Reverb stops on SIGTERM" 'BROADCAST_CONNECTION="reverb"' term yes
 run_case "Reverb with a comment after the setting" 'BROADCAST_CONNECTION=reverb # live updates' term yes
 run_case "Reverb stops when the server crashes" 'BROADCAST_CONNECTION=reverb' crash yes SERVER_EXIT_CODE=3
+run_case "SIGHUP leaves the server and Reverb running" 'BROADCAST_CONNECTION=reverb' hup yes
+run_case "SIGHUP leaves the server running without Reverb" 'BROADCAST_CONNECTION=pusher' hup no
 run_case "Warns when Reverb stops right after starting" 'BROADCAST_CONNECTION=reverb' term dies REVERB_EXIT_CODE=1
 run_case "No Reverb with another broadcaster" 'BROADCAST_CONNECTION=pusher' term no
 run_case "No Reverb when the environment overrides .env" 'BROADCAST_CONNECTION=reverb' term no BROADCAST_CONNECTION=null

@@ -130,7 +130,10 @@ reverb_enabled() {
 # Reverb lives as long as the server: a stop signal goes to the server, and Reverb
 # is stopped once the server exits, so the next start can bind its port again.
 # Reverb under FrankenPHP's php-cli ignores SIGTERM and SIGINT, so it gets SIGKILL.
+# FrankenPHP ignores SIGHUP, so all three ignore it, as the server alone did before.
 run_server_with_reverb() {
+	trap '' HUP
+
 	echo "[koel] starting Reverb (log: $KOEL_HOME/storage/logs/reverb.log)" >&2
 	"$FRANKENPHP" php-cli artisan reverb:start >> "$KOEL_HOME/storage/logs/reverb.log" 2>&1 &
 	REVERB_PID=$!
