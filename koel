@@ -124,7 +124,7 @@ reverb_enabled() {
 		return
 	fi
 
-	grep -sEq '^BROADCAST_CONNECTION=["'"'"']?reverb["'"'"']?[[:space:]]*$' "$KOEL_HOME/.env"
+	grep -sEq '^BROADCAST_CONNECTION=["'"'"']?reverb["'"'"']?[[:space:]]*(#.*)?$' "$KOEL_HOME/.env"
 }
 
 # Reverb lives as long as the server: a stop signal goes to the server, and Reverb

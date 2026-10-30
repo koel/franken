@@ -119,6 +119,7 @@ run_case() {
 
 run_case "Reverb stops on Ctrl+C" 'BROADCAST_CONNECTION=reverb' int yes
 run_case "Reverb stops on SIGTERM" 'BROADCAST_CONNECTION="reverb"' term yes
+run_case "Reverb with a comment after the setting" 'BROADCAST_CONNECTION=reverb # live updates' term yes
 run_case "Reverb stops when the server crashes" 'BROADCAST_CONNECTION=reverb' crash yes SERVER_EXIT_CODE=3
 run_case "No Reverb with another broadcaster" 'BROADCAST_CONNECTION=pusher' term no
 run_case "No Reverb when the environment overrides .env" 'BROADCAST_CONNECTION=reverb' term no BROADCAST_CONNECTION=null
