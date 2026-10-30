@@ -118,6 +118,39 @@ install_scheduler_cron() {
 	fi
 }
 
+reverb_enabled() {
+	if [[ -n "${BROADCAST_CONNECTION+set}" ]]; then
+		[[ "$BROADCAST_CONNECTION" == "reverb" ]]
+		return
+	fi
+
+	grep -sEq '^BROADCAST_CONNECTION=["'"'"']?reverb["'"'"']?[[:space:]]*$' "$KOEL_HOME/.env"
+}
+
+# Reverb lives as long as the server: a stop signal goes to the server, and Reverb
+# is stopped once the server exits, so the next start can bind its port again.
+# Reverb under FrankenPHP's php-cli ignores SIGTERM and SIGINT, so it gets SIGKILL.
+run_server_with_reverb() {
+	echo "[koel] starting Reverb (log: $KOEL_HOME/storage/logs/reverb.log)" >&2
+	"$FRANKENPHP" php-cli artisan reverb:start >> "$KOEL_HOME/storage/logs/reverb.log" 2>&1 &
+	REVERB_PID=$!
+	trap 'kill -KILL "$REVERB_PID" 2>/dev/null || true' EXIT
+
+	"$FRANKENPHP" php-server "$@" &
+	SERVER_PID=$!
+	trap 'kill "$SERVER_PID" 2>/dev/null || true' INT TERM
+
+	local status=0
+	wait "$SERVER_PID" || status=$?
+
+	if kill -0 "$SERVER_PID" 2>/dev/null; then
+		status=0
+		wait "$SERVER_PID" || status=$?
+	fi
+
+	exit "$status"
+}
+
 if [[ $# -lt 1 ]]; then
 	echo "Usage: $0 <php-server|php-cli|run|version|…> [args…]" >&2
 	exit 2
@@ -143,6 +176,10 @@ if [[ "$SUBCMD" == "php-server" ]]; then
 	done
 	if [[ $HAS_ROOT -eq 0 ]]; then
 		set -- "--root" "public/" "$@"
+	fi
+
+	if reverb_enabled; then
+		run_server_with_reverb "$@"
 	fi
 fi
 
